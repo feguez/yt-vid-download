@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>YouTube MP4 Downloader</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f4f5f7;color:#192335;font:16px/1.5 system-ui,sans-serif}
+    main{max-width:660px;margin:8vh auto;padding:32px;background:white;border:1px solid #e0e4ea;border-radius:18px;box-shadow:0 12px 45px #19233508}
+    .eyebrow{color:#52627a;font-size:12px;letter-spacing:.12em;text-transform:uppercase}h1{font-size:30px;line-height:1.2;margin:12px 0}p{color:#52627a}
+    label{display:block;font-weight:600;margin:22px 0 7px}input,select,button{font:inherit;border-radius:8px;padding:12px;border:1px solid #c5cdd8}input{width:100%}select{width:100%;background:white}button{cursor:pointer;background:#214fd1;color:white;border:0;margin-top:18px;padding:12px 20px}button:disabled{opacity:.55;cursor:wait}button.secondary{background:#edf1fb;color:#2143a0}button:focus-visible,input:focus,select:focus{outline:3px solid #a6bcff;outline-offset:2px}
+    #preview{margin-top:26px;border-top:1px solid #e0e4ea;padding-top:24px}img{width:100%;max-height:290px;object-fit:contain;border-radius:10px;background:#f4f5f7}h2{font-size:20px}#status{min-height:24px;margin-top:20px}#status.error{color:#b42318}small{display:block;color:#637087;margin-top:24px}a{color:#214fd1}[hidden]{display:none!important}@media(max-width:700px){main{margin:20px 12px;padding:24px}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Local Python utility · No API keys</div>
+  <h1>YouTube MP4 Downloader</h1>
+  <p>Save a video with audio as an MP4, at up to 360p or 480p.</p>
+  <form id="info-form">
+    <label for="url">Video URL</label>
+    <input id="url" name="url" type="url" required placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+    <button id="info-button" class="secondary" type="submit">Get video info</button>
+  </form>
+  <section id="preview" hidden aria-label="Video information">
+    <img id="thumbnail" alt="Video thumbnail" referrerpolicy="no-referrer">
+    <h2 id="title"></h2><p id="duration"></p>
+  </section>
+  <form id="download-form">
+    <label for="quality">Video quality</label>
+    <select id="quality"><option value="480">480p MP4 (up to)</option><option value="360">360p MP4 (up to)</option></select>
+    <button id="download-button" type="submit">Download MP4</button>
+  </form>
+  <div id="status" role="status" aria-live="polite"></div>
+  <small>Downloads run locally. Save only videos you are authorized to download. <a href="/docs">API documentation</a></small>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  const status = (message, error = false) => { $('status').textContent = message; $('status').className = error ? 'error' : ''; };
+  let busy = false;
+  function setBusy(value) { busy = value; $('info-button').disabled = value; $('download-button').disabled = value; }
+  async function failure(response) { let data; try { data = await response.json(); } catch {} return new Error(typeof data?.detail === 'string' ? data.detail : `Request failed (${response.status}).`); }
+  $('url').addEventListener('input', () => { $('preview').hidden = true; });
+  $('info-form').addEventListener('submit', async event => {
+    event.preventDefault(); if (busy) return; setBusy(true); status('Retrieving video information…'); $('preview').hidden = true;
+    try {
+      const response = await fetch('/api/info?' + new URLSearchParams({url: $('url').value.trim()}));
+      if (!response.ok) throw await failure(response);
+      const video = await response.json(); $('title').textContent = video.title;
+      const seconds = Math.round(video.duration || 0);
+      $('duration').textContent = video.duration == null ? 'Duration unavailable' : `${Math.floor(seconds / 60)} min ${seconds % 60} sec`;
+      const thumbnail = video.thumbnail && new URL(video.thumbnail);
+      $('thumbnail').hidden = !thumbnail || thumbnail.protocol !== 'https:';
+      if (thumbnail?.protocol === 'https:') $('thumbnail').src = thumbnail.href;
+      $('preview').hidden = false; status('Ready to download.');
+    } catch (error) { status(error.message, true); } finally { setBusy(false); }
+  });
+  $('download-form').addEventListener('submit', async event => {
+    event.preventDefault(); if (busy) return;
+    if (!$('url').reportValidity()) return;
+    setBusy(true); status('Downloading and preparing MP4… This can take a few minutes.');
+    let handle;
+    try {
+      // Chromium can stream straight to disk. Other browsers use a Blob fallback.
+      if ('showSaveFilePicker' in window) {
+        handle = await window.showSaveFilePicker({suggestedName:'youtube-video.mp4', types:[{description:'MP4 video', accept:{'video/mp4':['.mp4']}}]});
+      }
+      const response = await fetch('/api/download', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:$('url').value.trim(),quality:Number($('quality').value)})});
+      if (!response.ok) throw await failure(response);
+      if (handle) {
+        const writable = await handle.createWritable();
+        await response.body.pipeTo(writable);
+        status('MP4 saved.');
+      } else {
+        const blob = await response.blob(); const link = document.createElement('a');
+        const disposition = response.headers.get('Content-Disposition') || '';
+        const encoded = disposition.match(/filename\*=utf-8''([^;]+)/i);
+        const plain = disposition.match(/filename="([^"]+)"/i);
+        link.download = encoded ? decodeURIComponent(encoded[1]) : (plain?.[1] || 'youtube-video.mp4');
+        link.href = URL.createObjectURL(blob); document.body.append(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+        status('MP4 sent to your browser. Check your downloads.');
+      }
+    } catch (error) { status(error.name === 'AbortError' ? 'Save cancelled.' : error.message, error.name !== 'AbortError'); }
+    finally { setBusy(false); }
+  });
+</script>
+</body>
+</html>
