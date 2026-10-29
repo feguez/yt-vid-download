@@ -2,7 +2,7 @@
 
 A small local Python utility: paste one YouTube video URL, inspect its metadata, and save an MP4 with audio. No API keys, accounts, database, or hosted server.
 
-Uses Python 3.11+, yt-dlp, FastAPI, and a plain HTML/CSS/JavaScript interface. Quality is capped at 360p or 480p; a combined 360p MP4 is preferred over separate 480p streams to avoid unnecessary dependencies. Recorded watch, youtu.be, Shorts, embed, and live-page links are supported; playlists and active livestreams are excluded.
+Uses Python 3.11+, yt-dlp, FastAPI, and a plain HTML/CSS/JavaScript interface. Choose a quality ceiling of 360p, 480p, 720p, or 1080p (default: 480p). The highest available resolution under that ceiling is selected, with combined audio/video preferred at equal resolution. Separate streams require FFmpeg; the app explains how to install it instead of silently choosing a lower-resolution combined file. Recorded watch, youtu.be, Shorts, embed, and live-page links are supported; playlists and active livestreams are excluded.
 
 ## Install (Windows PowerShell)
 
@@ -21,6 +21,8 @@ Using the virtual environment's Python directly avoids PowerShell activation pol
 ```powershell
 .\.venv\Scripts\python.exe downloader.py "https://www.youtube.com/watch?v=VIDEO_ID" --quality 480
 ```
+
+For Full HD, use `--quality 1080`, or select **1080p MP4 (up to)** in the browser. The source must offer that resolution; lower-resolution sources are not upscaled.
 
 Replace `VIDEO_ID` with the video's actual 11-character ID. The CLI prints the saved path under `downloads/video-*/video.mp4` and keeps that file. Each download has its own folder. Errors describe invalid URLs, unavailable videos, missing formats, or missing FFmpeg.
 
@@ -53,7 +55,7 @@ Invoke-WebRequest "http://127.0.0.1:8000/api/download" -Method Post -ContentType
 
 ### FFmpeg and extraction requirements
 
-Combined MP4 audio/video formats work without FFmpeg. When only separate MP4 video and M4A audio are available, install FFmpeg and restart your terminal:
+Combined MP4 audio/video formats work without FFmpeg. Higher resolutions, especially 720p and 1080p, usually use separate MP4 video and M4A audio. To download these, install FFmpeg, then open a new terminal and restart the app:
 
 ```powershell
 winget install --id Gyan.FFmpeg -e

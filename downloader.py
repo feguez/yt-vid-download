@@ -12,6 +12,7 @@ import yt_dlp
 from yt_dlp.utils import DownloadError
 
 DOWNLOADS = Path(__file__).resolve().parent / "downloads"
+QUALITIES = (360, 480, 720, 1080)
 
 
 class DownloaderError(Exception):
@@ -86,7 +87,7 @@ def get_video_info(url: str) -> dict:
 
 
 def select_format(formats: list[dict], quality: int, ffmpeg: bool) -> str:
-    """Prefer combined MP4; only merge MP4 video and M4A audio as fallback."""
+    """Choose the highest resolution under the cap; prefer combined at equal height."""
     def video_ok(f):
         return (f.get("ext") == "mp4" and f.get("vcodec") not in {None, "none"}
                 and 0 < (f.get("height") or 0) <= quality and not f.get("has_drm"))
@@ -95,15 +96,17 @@ def select_format(formats: list[dict], quality: int, ffmpeg: bool) -> str:
         return (f.get("height") or 0, f.get("tbr") or 0)
 
     combined = [f for f in formats if video_ok(f) and f.get("acodec") not in {None, "none"}]
-    if combined:
-        return max(combined, key=rank)["format_id"]
     videos = [f for f in formats if video_ok(f) and f.get("acodec") == "none"]
     audio = [f for f in formats if f.get("ext") == "m4a" and f.get("acodec") not in {None, "none"}
              and f.get("vcodec") == "none" and not f.get("has_drm")]
-    if videos and audio:
+    best_combined = max(combined, key=rank) if combined else None
+    best_video = max(videos, key=rank) if videos and audio else None
+    if best_combined and (not best_video or best_combined["height"] >= best_video["height"]):
+        return best_combined["format_id"]
+    if best_video:
         if not ffmpeg:
             raise DownloaderError("This video needs FFmpeg to combine audio and video. Install it with: winget install --id Gyan.FFmpeg -e", 409)
-        return max(videos, key=rank)["format_id"] + "+" + max(audio, key=lambda f: f.get("abr") or 0)["format_id"]
+        return best_video["format_id"] + "+" + max(audio, key=lambda f: f.get("abr") or 0)["format_id"]
     raise DownloaderError(f"No MP4 with audio is available at {quality}p or below.", 422)
 
 
@@ -119,8 +122,8 @@ class Download:
 
 def download_video(url: str, quality: int = 480, output_dir: Path = DOWNLOADS) -> Download:
     url = validate_url(url)
-    if quality not in {360, 480}:
-        raise DownloaderError("Choose 360p or 480p.", 400)
+    if quality not in QUALITIES:
+        raise DownloaderError("Choose 360p, 480p, 720p, or 1080p.", 400)
     info = _metadata(url)
     selected = select_format(info.get("formats", []), quality, shutil.which("ffmpeg") is not None)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -150,7 +153,7 @@ def download_video(url: str, quality: int = 480, output_dir: Path = DOWNLOADS) -
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download one authorized YouTube video as MP4.")
     parser.add_argument("url")
-    parser.add_argument("--quality", type=int, choices=[360, 480], default=480)
+    parser.add_argument("--quality", type=int, choices=QUALITIES, default=480)
     args = parser.parse_args()
     try:
         result = download_video(args.url, args.quality)

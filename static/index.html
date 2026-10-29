@@ -16,7 +16,7 @@
 <main>
   <div class="eyebrow">Local Python utility · No API keys</div>
   <h1>YouTube MP4 Downloader</h1>
-  <p>Save a video with audio as an MP4, at up to 360p or 480p.</p>
+  <p>Save a video with audio as an MP4, at up to 1080p.</p>
   <form id="info-form">
     <label for="url">Video URL</label>
     <input id="url" name="url" type="url" required placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
@@ -28,7 +28,8 @@
   </section>
   <form id="download-form">
     <label for="quality">Video quality</label>
-    <select id="quality"><option value="480">480p MP4 (up to)</option><option value="360">360p MP4 (up to)</option></select>
+    <select id="quality"><option value="1080">1080p MP4 (up to)</option><option value="720">720p MP4 (up to)</option><option value="480" selected>480p MP4 (up to)</option><option value="360">360p MP4 (up to)</option></select>
+    <small>Higher resolutions usually require FFmpeg to combine video and audio. If prompted, install it and restart the app.</small>
     <button id="download-button" type="submit">Download MP4</button>
   </form>
   <div id="status" role="status" aria-live="polite"></div>

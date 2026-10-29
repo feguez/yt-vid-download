@@ -31,7 +31,8 @@ def formats():
 
 
 def test_format_selection():
-    assert d.select_format(formats(), 480, False) == "18"
+    assert d.select_format(formats(), 360, False) == "18"
+    assert d.select_format(formats(), 480, True) == "135+140"
     assert d.select_format(formats()[1:], 480, True) == "135+140"
     with pytest.raises(d.DownloaderError, match="FFmpeg"):
         d.select_format(formats()[1:], 480, False)
@@ -70,7 +71,7 @@ def test_download_and_cleanup(tmp_path):
             Path(instance.params["outtmpl"]["default"].replace("%(ext)s", "mp4")).write_bytes(b"\x00\x00\x00\x18ftypmp42" + b"test")
         return fake_extract(url)
     with patch.object(d.yt_dlp.YoutubeDL, "extract_info", extract):
-        result = d.download_video(URL, output_dir=tmp_path)
+        result = d.download_video(URL, quality=360, output_dir=tmp_path)
     assert result.path.suffix == ".mp4"
     assert result.path.exists()
     with patch.object(app, "download_video", return_value=result):
@@ -90,7 +91,7 @@ def test_partial_download_cleanup(tmp_path):
         return fake_extract(url)
     with patch.object(d.yt_dlp.YoutubeDL, "extract_info", extract):
         with pytest.raises(d.DownloaderError):
-            d.download_video(URL, output_dir=tmp_path)
+            d.download_video(URL, quality=360, output_dir=tmp_path)
     assert list(tmp_path.iterdir()) == []
 
 
@@ -101,14 +102,14 @@ def test_wrong_container_rejected(tmp_path):
         return fake_extract(url)
     with patch.object(d.yt_dlp.YoutubeDL, "extract_info", extract):
         with pytest.raises(d.DownloaderError, match="container"):
-            d.download_video(URL, output_dir=tmp_path)
+            d.download_video(URL, quality=360, output_dir=tmp_path)
     assert list(tmp_path.iterdir()) == []
 
 
 def test_api_validation_and_local_access():
     assert client.get("/").status_code == 200
     assert client.post("/api/download", json={}).status_code == 422
-    assert client.post("/api/download", json={"url": URL, "quality": 720}).status_code == 400
+    assert client.post("/api/download", json={"url": URL, "quality": 2160}).status_code == 400
     assert client.get("/", headers={"Host": "evil.test"}).status_code == 403
     assert client.post("/api/download", json={"url": URL}, headers={"Origin": "https://evil.test"}).status_code == 403
 
@@ -116,4 +117,35 @@ def test_api_validation_and_local_access():
 def test_busy_download():
     with app.download_lock:
         assert client.post("/api/download", json={"url": URL}).status_code == 409
+
+
+@pytest.mark.parametrize("quality,expected", [(360, "18"), (480, "135+140"), (720, "136+140"), (1080, "137+140")])
+def test_resolution_caps(quality, expected):
+    available = formats() + [
+        dict(format_id=identifier, ext="mp4", vcodec="avc1", acodec="none", height=height)
+        for identifier, height in [("136", 720), ("137", 1080), ("2160", 2160)]
+    ]
+    assert d.select_format(available, quality, True) == expected
+
+
+def test_high_quality_requires_ffmpeg_instead_of_silent_downgrade():
+    with pytest.raises(d.DownloaderError, match="FFmpeg") as error:
+        d.select_format(formats(), 1080, False)
+    assert error.value.status_code == 409
+
+
+def test_combined_preferred_at_same_resolution():
+    available = formats() + [dict(format_id="combined480", ext="mp4", vcodec="avc1", acodec="mp4a", height=480)]
+    assert d.select_format(available, 1080, False) == "combined480"
+
+
+@pytest.mark.parametrize("quality", [720, 1080])
+def test_api_accepts_hd_quality(quality, tmp_path):
+    path = tmp_path / "video.mp4"
+    path.write_bytes(b"test")
+    result = d.Download(path, tmp_path / "unused", "video.mp4")
+    with patch.object(app, "download_video", return_value=result) as download:
+        response = client.post("/api/download", json={"url": URL, "quality": quality})
+    assert response.status_code == 200
+    download.assert_called_once_with(URL, quality)
 
