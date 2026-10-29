@@ -30,6 +30,9 @@
     <label for="quality">Video quality</label>
     <select id="quality"><option value="1080">1080p MP4 (up to)</option><option value="720">720p MP4 (up to)</option><option value="480" selected>480p MP4 (up to)</option><option value="360">360p MP4 (up to)</option></select>
     <small>Higher resolutions usually require FFmpeg to combine video and audio. If prompted, install it and restart the app.</small>
+    <label for="language">Audio language</label>
+    <select id="language"><option value="original">Original audio</option></select>
+    <small>Get video info to see available languages. If the original track cannot be identified, choose a language explicitly.</small>
     <button id="download-button" type="submit">Download MP4</button>
   </form>
   <div id="status" role="status" aria-live="polite"></div>
@@ -41,13 +44,22 @@
   let busy = false;
   function setBusy(value) { busy = value; $('info-button').disabled = value; $('download-button').disabled = value; }
   async function failure(response) { let data; try { data = await response.json(); } catch {} return new Error(typeof data?.detail === 'string' ? data.detail : `Request failed (${response.status}).`); }
-  $('url').addEventListener('input', () => { $('preview').hidden = true; });
+  function resetLanguages() { $('language').replaceChildren(new Option('Original audio', 'original')); }
+  $('url').addEventListener('input', () => { $('preview').hidden = true; resetLanguages(); });
   $('info-form').addEventListener('submit', async event => {
     event.preventDefault(); if (busy) return; setBusy(true); status('Retrieving video information…'); $('preview').hidden = true;
     try {
       const response = await fetch('/api/info?' + new URLSearchParams({url: $('url').value.trim()}));
       if (!response.ok) throw await failure(response);
       const video = await response.json(); $('title').textContent = video.title;
+      resetLanguages();
+      const languageNames = typeof Intl.DisplayNames === 'function' ? new Intl.DisplayNames(['en'], {type:'language'}) : null;
+      for (const code of video.audio_languages || []) {
+        let label = code;
+        try { label = languageNames?.of(code) || code; } catch {}
+        const original = code === video.original_audio_language ? ' — original' : '';
+        $('language').add(new Option(`${label} (${code})${original}`, code));
+      }
       const seconds = Math.round(video.duration || 0);
       $('duration').textContent = video.duration == null ? 'Duration unavailable' : `${Math.floor(seconds / 60)} min ${seconds % 60} sec`;
       const thumbnail = video.thumbnail && new URL(video.thumbnail);
@@ -66,7 +78,7 @@
       if ('showSaveFilePicker' in window) {
         handle = await window.showSaveFilePicker({suggestedName:'youtube-video.mp4', types:[{description:'MP4 video', accept:{'video/mp4':['.mp4']}}]});
       }
-      const response = await fetch('/api/download', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:$('url').value.trim(),quality:Number($('quality').value)})});
+      const response = await fetch('/api/download', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:$('url').value.trim(),quality:Number($('quality').value),language:$('language').value})});
       if (!response.ok) throw await failure(response);
       if (handle) {
         const writable = await handle.createWritable();

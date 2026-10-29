@@ -50,6 +50,7 @@ def video_info(url: str):
 class DownloadRequest(BaseModel):
     url: str = Field(min_length=1, max_length=2048)
     quality: int = 480
+    language: str = Field(default="original", min_length=1, max_length=40)
 
 
 @app.post("/api/download")
@@ -57,7 +58,7 @@ def video_download(body: DownloadRequest):
     if not download_lock.acquire(blocking=False):
         raise DownloaderError("Another download is running. Try again when it finishes.", 409)
     try:
-        result = download_video(body.url, body.quality)
+        result = download_video(body.url, body.quality, language=body.language)
     finally:
         download_lock.release()
     return FileResponse(result.path, media_type="video/mp4", filename=result.filename,

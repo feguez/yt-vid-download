@@ -147,5 +147,5 @@ def test_api_accepts_hd_quality(quality, tmp_path):
     with patch.object(app, "download_video", return_value=result) as download:
         response = client.post("/api/download", json={"url": URL, "quality": quality})
     assert response.status_code == 200
-    download.assert_called_once_with(URL, quality)
+    download.assert_called_once_with(URL, quality, language="original")
 

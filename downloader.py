@@ -80,14 +80,49 @@ def _metadata(url: str) -> dict:
     return info
 
 
+def audio_formats(formats: list[dict]) -> list[dict]:
+    return [f for f in formats if f.get("acodec") not in {None, "none"}
+            and f.get("ext") in {"mp4", "m4a"} and not f.get("has_drm")]
+
+
+def original_audio_language(formats: list[dict]) -> str | None:
+    original = [f for f in audio_formats(formats)
+                if "original" in (f.get("format_note") or "").lower()
+                or (f.get("language_preference") or 0) >= 10]
+    languages = {f["language"] for f in original if f.get("language")}
+    return next(iter(languages)) if len(languages) == 1 else None
+
+
+def filter_audio_language(formats: list[dict], language: str) -> list[dict]:
+    tracks = audio_formats(formats)
+    languages = {f["language"] for f in tracks if f.get("language")}
+    if language == "original":
+        selected = original_audio_language(formats)
+        if not selected and len(languages) == 1:
+            selected = next(iter(languages))
+        if not selected and languages:
+            raise DownloaderError("The original audio language could not be identified. Get video info and choose an audio language explicitly.", 422)
+    else:
+        selected = language
+        if selected not in languages:
+            raise DownloaderError("The selected audio language is unavailable. Get video info and choose an available language.", 422)
+    # Video-only streams have no audio language and remain eligible for merging.
+    return [f for f in formats if f.get("acodec") == "none"
+            or (f.get("acodec") not in {None, "none"} and f.get("language") == selected)]
+
+
 def get_video_info(url: str) -> dict:
     info = _metadata(validate_url(url))
     return {"id": info["id"], "title": info.get("title", "YouTube video"),
-            "duration": info.get("duration"), "thumbnail": info.get("thumbnail")}
+            "duration": info.get("duration"), "thumbnail": info.get("thumbnail"),
+            "audio_languages": sorted({f["language"] for f in audio_formats(info.get("formats", [])) if f.get("language")}),
+            "original_audio_language": original_audio_language(info.get("formats", []))}
 
 
-def select_format(formats: list[dict], quality: int, ffmpeg: bool) -> str:
+def select_format(formats: list[dict], quality: int, ffmpeg: bool, language: str = "original") -> str:
     """Choose the highest resolution under the cap; prefer combined at equal height."""
+    formats = filter_audio_language(formats, language)
+
     def video_ok(f):
         return (f.get("ext") == "mp4" and f.get("vcodec") not in {None, "none"}
                 and 0 < (f.get("height") or 0) <= quality and not f.get("has_drm"))
@@ -120,12 +155,12 @@ class Download:
         shutil.rmtree(self.directory, ignore_errors=True)
 
 
-def download_video(url: str, quality: int = 480, output_dir: Path = DOWNLOADS) -> Download:
+def download_video(url: str, quality: int = 480, output_dir: Path = DOWNLOADS, language: str = "original") -> Download:
     url = validate_url(url)
     if quality not in QUALITIES:
         raise DownloaderError("Choose 360p, 480p, 720p, or 1080p.", 400)
     info = _metadata(url)
-    selected = select_format(info.get("formats", []), quality, shutil.which("ffmpeg") is not None)
+    selected = select_format(info.get("formats", []), quality, shutil.which("ffmpeg") is not None, language)
     output_dir.mkdir(parents=True, exist_ok=True)
     directory = Path(tempfile.mkdtemp(prefix="video-", dir=output_dir))
     try:
@@ -154,9 +189,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download one authorized YouTube video as MP4.")
     parser.add_argument("url")
     parser.add_argument("--quality", type=int, choices=QUALITIES, default=480)
+    parser.add_argument("--language", default="original", help="Audio language code (e.g. en) or original (default)")
     args = parser.parse_args()
     try:
-        result = download_video(args.url, args.quality)
+        result = download_video(args.url, args.quality, language=args.language)
         print(f"Saved: {result.path}")
     except (DownloaderError, OSError) as exc:
         parser.exit(1, f"Download failed: {exc}\n")

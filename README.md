@@ -53,6 +53,12 @@ Invoke-WebRequest "http://127.0.0.1:8000/api/download" -Method Post -ContentType
 
 `POST /api/download` accepts `{"url":"...","quality":480}` and returns an attachment with `Content-Type: video/mp4`. Duration is in seconds and may be null. Errors use `{"detail":"Explanation"}`: 400 invalid URL/quality or unsupported live video, 404 unavailable video, 409 missing FFmpeg or busy downloader, 422 invalid request body or no suitable MP4 format, 502 YouTube extraction/blocking failure, 500 local filesystem failure.
 
+### Audio language
+
+Click **Get video info**, then choose **Audio language** before downloading. The default **Original audio** uses yt-dlp's original-track label rather than picking the highest-bitrate dub. If only one labeled language exists, that track is used; if multiple languages exist without an identifiable original, the app asks you to choose explicitly. If the source provides no language labels, its unlabeled audio is used without claiming to identify its spoken language.
+
+The API accepts an optional `language` field: `"original"` (default), or an available code from the metadata response's `audio_languages`, such as `"en"` or `"de"`. The CLI supports `--language en`. Unavailable language choices return HTTP 422 rather than downloading another language. Audio language applies to combined MP4 files as well as separate audio streams; choosing a particular track may require FFmpeg even at lower quality.
+
 ### FFmpeg and extraction requirements
 
 Combined MP4 audio/video formats work without FFmpeg. Higher resolutions, especially 720p and 1080p, usually use separate MP4 video and M4A audio. To download these, install FFmpeg, then open a new terminal and restart the app:
