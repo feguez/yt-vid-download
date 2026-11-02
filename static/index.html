@@ -3,49 +3,79 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>YouTube MP4 Downloader</title>
+  <meta name="color-scheme" content="light">
+  <title>YouTube MP4 Downloader · Local video tool</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;background:#f4f5f7;color:#192335;font:16px/1.5 system-ui,sans-serif}
-    main{max-width:660px;margin:8vh auto;padding:32px;background:white;border:1px solid #e0e4ea;border-radius:18px;box-shadow:0 12px 45px #19233508}
-    .eyebrow{color:#52627a;font-size:12px;letter-spacing:.12em;text-transform:uppercase}h1{font-size:30px;line-height:1.2;margin:12px 0}p{color:#52627a}
-    label{display:block;font-weight:600;margin:22px 0 7px}input,select,button{font:inherit;border-radius:8px;padding:12px;border:1px solid #c5cdd8}input{width:100%}select{width:100%;background:white}button{cursor:pointer;background:#214fd1;color:white;border:0;margin-top:18px;padding:12px 20px}button:disabled{opacity:.55;cursor:wait}button.secondary{background:#edf1fb;color:#2143a0}button:focus-visible,input:focus,select:focus{outline:3px solid #a6bcff;outline-offset:2px}
-    #preview{margin-top:26px;border-top:1px solid #e0e4ea;padding-top:24px}img{width:100%;max-height:290px;object-fit:contain;border-radius:10px;background:#f4f5f7}h2{font-size:20px}#status{min-height:24px;margin-top:20px}#status.error{color:#b42318}small{display:block;color:#637087;margin-top:24px}a{color:#214fd1}[hidden]{display:none!important}@media(max-width:700px){main{margin:20px 12px;padding:24px}}
+    :root{font-family:Segoe UI,system-ui,-apple-system,sans-serif;color:#172b3a;background:#f5f7f8;font-synthesis:none;line-height:1.5;--muted:#536575;--line:#dce4e8;--accent:#146b60}
+    *{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}a{color:var(--accent);text-underline-offset:3px}a:hover{color:#0e4c44}
+    .shell{max-width:840px;margin:auto;padding:0 28px}.topbar{display:flex;align-items:center;justify-content:space-between;padding:25px 0;border-bottom:1px solid var(--line);font-size:13px}.brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:.01em}.brand-mark{display:grid;place-items:center;width:29px;height:29px;background:#183b46;color:#fff;border-radius:8px}.brand-mark svg{width:17px;height:17px}.local{display:flex;align-items:center;gap:7px;color:var(--muted)}.local::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent)}
+    header{padding:38px 0 25px}.eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}h1{font-size:clamp(27px,5vw,35px);line-height:1.2;letter-spacing:-.035em;margin:0 0 12px;font-weight:650}.intro{max-width:570px;margin:0;color:var(--muted);font-size:15px}.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}.facts span{font-size:12px;color:#3a5260;border:1px solid var(--line);border-radius:5px;padding:4px 9px;background:#fff}
+    main{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 5px 24px #1f354008;overflow:hidden}.section{padding:25px 28px}.section+.section{border-top:1px solid #e5ebee}.section-title{display:flex;align-items:center;gap:10px;margin:0 0 19px;font-size:15px;font-weight:650;letter-spacing:-.01em}.step{display:grid;place-items:center;width:24px;height:24px;border:1px solid #d8e5e2;color:#20695e;border-radius:50%;font-size:11px;background:#f3f8f6}
+    label{display:block;font-size:13px;font-weight:600;margin:0 0 7px}input,select{border:1px solid #bdcbd2;border-radius:7px;background:#fff;color:#172b3a;min-height:45px;padding:10px 12px;width:100%;min-width:0}input::placeholder{color:#7d8d98}input:hover,select:hover{border-color:#899ea9}button{border:1px solid transparent;border-radius:7px;min-height:45px;padding:10px 17px;font-size:13px;font-weight:650;cursor:pointer;transition:background .15s}button:hover{background:#10594f}button:disabled{opacity:.6;cursor:wait}input:disabled,select:disabled{background:#f5f7f8;color:var(--muted)}:focus-visible{outline:3px solid #77bcae;outline-offset:3px}.url-row{display:flex;gap:10px;align-items:start}.url-row input{flex:1}.secondary{background:#f5f8f9;border-color:#cdd9de;color:#294655;white-space:nowrap}.secondary:hover{background:#e9f0f2}.hint{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.6}
+    #preview{display:flex;align-items:center;gap:16px;margin-top:21px;padding:14px;background:#f5f8f9;border:1px solid #e0e8eb;border-radius:8px}#thumbnail{width:135px;aspect-ratio:16/9;object-fit:cover;border-radius:5px;flex-shrink:0}#title{font-size:14px;line-height:1.5;margin:0 0 5px;font-weight:650;overflow-wrap:anywhere}#duration{color:var(--muted);font-size:12px;margin:0}.settings{display:grid;grid-template-columns:1fr 1fr;gap:20px}.action-row{margin-top:24px;display:flex;align-items:center;justify-content:space-between;gap:20px}.action-copy{font-size:12px;color:var(--muted);margin:0;max-width:330px}.primary{display:flex;align-items:center;justify-content:center;gap:9px;background:var(--accent);color:white;white-space:nowrap}.primary svg{width:16px;height:16px}
+    .status-wrap{padding:15px 28px;background:#f8fafb;border-top:1px solid #e5ebee}#status{color:var(--muted);font-size:13px;min-height:20px;display:flex;align-items:center;gap:10px}#status.error{color:#a52e29}#status[data-state=loading]::before{content:'';width:14px;height:14px;flex-shrink:0;border:2px solid #c9ded8;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    .transparency{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:24px}.transparency h2{font-size:12px;margin:0 0 5px;font-weight:650}.transparency p{font-size:12px;color:var(--muted);margin:0;line-height:1.7}footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:15px;padding:26px 0 30px;margin-top:5px;color:var(--muted);font-size:11px}footer nav{display:flex;gap:17px}footer a{color:var(--muted)}[hidden]{display:none!important}
+    @media(max-width:580px){.shell{padding:0 18px}.topbar{padding:18px 0}.topbar .local{font-size:11px}header{padding-top:28px}.section{padding:22px 20px}.url-row{flex-direction:column}.url-row button{width:100%}.settings{grid-template-columns:1fr;gap:19px}.action-row{flex-direction:column;align-items:stretch;gap:14px}.action-copy{max-width:none}.primary{width:100%}.status-wrap{padding:15px 20px}.transparency{grid-template-columns:1fr;gap:17px}#preview{align-items:flex-start;gap:12px}#thumbnail{width:95px}.brand{font-size:12px}}
+    @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
   </style>
 </head>
 <body>
-<main>
-  <div class="eyebrow">Local Python utility · No API keys</div>
-  <h1>YouTube MP4 Downloader</h1>
-  <p>Save a video with audio as an MP4, at up to 1080p.</p>
-  <form id="info-form">
-    <label for="url">Video URL</label>
-    <input id="url" name="url" type="url" required placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
-    <button id="info-button" class="secondary" type="submit">Get video info</button>
-  </form>
-  <section id="preview" hidden aria-label="Video information">
-    <img id="thumbnail" alt="Video thumbnail" referrerpolicy="no-referrer">
-    <h2 id="title"></h2><p id="duration"></p>
-  </section>
-  <form id="download-form">
-    <label for="quality">Video quality</label>
-    <select id="quality"><option value="1080">1080p MP4 (up to)</option><option value="720">720p MP4 (up to)</option><option value="480" selected>480p MP4 (up to)</option><option value="360">360p MP4 (up to)</option></select>
-    <small>Higher resolutions usually require FFmpeg to combine video and audio. If prompted, install it and restart the app.</small>
-    <label for="language">Audio language</label>
-    <select id="language"><option value="original">Original audio</option></select>
-    <small>Get video info to see available languages. If the original track cannot be identified, choose a language explicitly.</small>
-    <button id="download-button" type="submit">Download MP4</button>
-  </form>
-  <div id="status" role="status" aria-live="polite"></div>
-  <small>Downloads run locally. Save only videos you are authorized to download. <a href="/docs">API documentation</a></small>
-</main>
+<div class="shell">
+  <div class="topbar"><div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg></span>YT / MP4</div><span class="local">Local application</span></div>
+  <header>
+    <p class="eyebrow">Your video. Saved locally.</p>
+    <h1>YouTube MP4 Downloader</h1>
+    <p class="intro">A simple way to save a video with audio. Check the details, choose your settings, and download an MP4 to your computer.</p>
+    <div class="facts" aria-label="Features"><span>Up to 1080p</span><span>Audio language selection</span><span>No account or API key</span></div>
+  </header>
+  <main id="workspace" aria-busy="false">
+    <section class="section" aria-labelledby="source-heading">
+      <h2 class="section-title" id="source-heading"><span class="step" aria-hidden="true">1</span>Choose a video</h2>
+      <form id="info-form">
+        <label for="url">YouTube video URL</label>
+        <div class="url-row"><input id="url" name="url" type="url" required placeholder="https://www.youtube.com/watch?v=…" autocomplete="off" spellcheck="false" aria-describedby="url-hint"><button id="info-button" class="secondary" type="submit">Get video info</button></div>
+        <p id="url-hint" class="hint">Paste a link to a single video or Short.</p>
+      </form>
+      <section id="preview" hidden aria-label="Video information">
+        <img id="thumbnail" alt="Video thumbnail" referrerpolicy="no-referrer"><div><h2 id="title"></h2><p id="duration"></p></div>
+      </section>
+    </section>
+    <section class="section" aria-labelledby="settings-heading">
+      <h2 class="section-title" id="settings-heading"><span class="step" aria-hidden="true">2</span>Set your download preferences</h2>
+      <form id="download-form">
+        <div class="settings">
+          <div><label for="quality">Video quality</label><select id="quality" aria-describedby="quality-hint"><option value="1080">1080p · Full HD</option><option value="720">720p · HD</option><option value="480" selected>480p · Standard</option><option value="360">360p · Smaller file</option></select><p class="hint" id="quality-hint">Highest available quality up to your selection. HD downloads usually require FFmpeg.</p></div>
+          <div><label for="language">Audio language</label><select id="language" aria-describedby="language-hint"><option value="original">Original audio</option></select><p class="hint" id="language-hint">Get video info to see available languages. Original audio is preferred when identified.</p></div>
+        </div>
+        <div class="action-row"><p class="action-copy">Your file includes video and audio. Choose where to save it when your browser prompts you.</p><button id="download-button" class="primary" type="submit"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg>Download MP4</button></div>
+      </form>
+    </section>
+    <div class="status-wrap"><div id="status" role="status" aria-live="polite" aria-atomic="true">Paste a link, then check its details before downloading.</div></div>
+  </main>
+  <aside class="transparency" aria-label="About this tool">
+    <div><h2>Runs on your computer</h2><p>This page connects to your local Python app. The app contacts YouTube to retrieve the video; no third-party conversion service is used.</p></div>
+    <div><h2>Download with permission</h2><p>Save videos you own or are authorized to download. Available quality and audio languages depend on the source video.</p></div>
+  </aside>
+  <footer><span>Independent tool · Not affiliated with YouTube</span><nav aria-label="Project links"><a href="https://github.com/feguez/yt-vid-download" target="_blank" rel="noopener noreferrer">Source on GitHub ↗</a><a href="/docs">API documentation</a></nav></footer>
+</div>
 <script>
   const $ = id => document.getElementById(id);
-  const status = (message, error = false) => { $('status').textContent = message; $('status').className = error ? 'error' : ''; };
+  const status = (message, error = false) => {
+    $('status').textContent = message;
+    $('status').className = error ? 'error' : '';
+    $('status').dataset.state = error ? 'error' : (busy ? 'loading' : 'ready');
+  };
   let busy = false;
-  function setBusy(value) { busy = value; $('info-button').disabled = value; $('download-button').disabled = value; }
+  function setBusy(value) {
+    busy = value;
+    for (const id of ['info-button', 'download-button', 'url', 'quality', 'language']) $(id).disabled = value;
+    $('workspace').setAttribute('aria-busy', String(value));
+    $('info-button').textContent = value ? 'Please wait…' : 'Get video info';
+    if (!value && $('status').dataset.state === 'loading') $('status').dataset.state = 'ready';
+  }
   async function failure(response) { let data; try { data = await response.json(); } catch {} return new Error(typeof data?.detail === 'string' ? data.detail : `Request failed (${response.status}).`); }
   function resetLanguages() { $('language').replaceChildren(new Option('Original audio', 'original')); }
-  $('url').addEventListener('input', () => { $('preview').hidden = true; resetLanguages(); });
+  $('url').addEventListener('input', () => { $('preview').hidden = true; resetLanguages(); status('Paste a link, then check its details before downloading.'); });
   $('info-form').addEventListener('submit', async event => {
     event.preventDefault(); if (busy) return; setBusy(true); status('Retrieving video information…'); $('preview').hidden = true;
     try {
@@ -65,7 +95,7 @@
       const thumbnail = video.thumbnail && new URL(video.thumbnail);
       $('thumbnail').hidden = !thumbnail || thumbnail.protocol !== 'https:';
       if (thumbnail?.protocol === 'https:') $('thumbnail').src = thumbnail.href;
-      $('preview').hidden = false; status('Ready to download.');
+      $('preview').hidden = false; status((video.audio_languages || []).length ? 'Video found. Review quality and audio language, then download.' : 'Video found. No labeled audio languages were returned; only original audio is available.');
     } catch (error) { status(error.message, true); } finally { setBusy(false); }
   });
   $('download-form').addEventListener('submit', async event => {
